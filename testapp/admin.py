@@ -5,7 +5,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.core.exceptions import ValidationError
 
-from testapp.models import User, UserManager
+from testapp.models import User, Post
 
 
 class UserCreationForm(forms.ModelForm):
@@ -67,4 +67,13 @@ class UserAdmin(BaseUserAdmin):
 
 
 admin.site.register(User, UserAdmin)
-# admin.site.unregister(Group)  # Uncomment if you don't need Django Groups
+
+
+# Custome post model
+class PostAdmin(admin.ModelAdmin):
+    list_display = ('title', 'author', 'created_at', 'updated_at')
+    search_fields = ('title', 'content')
+    list_filter = ('author', 'created_at')
+    
+
+admin.site.register(Post, PostAdmin)

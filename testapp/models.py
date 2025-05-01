@@ -1,7 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
+from django.conf import settings
 
-
+# Custome super user model
 class UserManager(BaseUserManager):
     def create_user(self, email, name, date_of_birth, password=None):
         if not email:
@@ -28,7 +29,7 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-
+# Custome user models
 class User(AbstractBaseUser):
     name = models.CharField(max_length=30)
     email = models.EmailField(
@@ -57,4 +58,16 @@ class User(AbstractBaseUser):
     @property
     def is_staff(self):
         return self.is_admin
+    
+    
+# Models for Post the Blog 
+class Post(models.Model):
+    title = models.CharField(max_length=100)
+    content = models.TextField()
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE) #ForeginKey to CustomeUser
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    
+    
 
