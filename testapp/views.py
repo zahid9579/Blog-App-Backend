@@ -4,17 +4,21 @@ from rest_framework.response import Response
 from .serializers import UserSerializer, PostSerializer
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from django.contrib.auth import authenticate, logout
+from django.contrib.auth import authenticate
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.authtoken.models import Token
+from .models import Post
 
 # To Register a new user
 class RegisterView(APIView):
-    permission_classes = [AllowAny]  
+    permission_classes = [AllowAny] 
 
     def post(self, request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response({'msg': "User created successfully"},  status=status.HTTP_201_CREATED)
+            user = serializer.save()
+            Token.objects.get_or_create(user=user)
+            return Response({'msg': "User created successfully", "user": serializer.data},  status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -29,8 +33,8 @@ class LoginView(APIView):
        user = authenticate(request, email=email, password=password)
        
        if user is not None:
-           return Response({"msg": "Login successfully"}, status=status.HTTP_200_OK)
-       
+           token, created = Token.objects.get_or_create(user=user)
+           return Response({"msg": "Login successfully", "token": token.key}, status=status.HTTP_200_OK)
        else:
            return Response({"error": "email or password is incorrect"}, status=status.HTTP_400_BAD_REQUEST)
        
@@ -38,18 +42,19 @@ class LoginView(APIView):
        
 # To Logout user
 class LogoutView(APIView):
-    permission_classes = [AllowAny]
-    def get(self, request):
-        logout(request)
-        return Response({"User Logout"}, status=status.HTTP_200_OK)
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
     
-
-
+    def post(self, request):
+        request.user.auth_token.delete()
+        return Response({"User Logged out"}, status=status.HTTP_200_OK)
+    
 
 # CRUD for BLOG_API
 # To create a post
 class CreatePostView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
     
     def post(self, request):
        serializer = PostSerializer(data=request.data)
@@ -62,4 +67,52 @@ class CreatePostView(APIView):
 
 # To get the list of Posts
 class GetAllPostsView(APIView):
-    pass
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        posts = Post.objects.all().order_by('-created_at')
+        serializer = PostSerializer(posts, many=True)
+        return Response({"posts": serializer.data}, status=status.HTTP_200_OK)
+    
+
+
+# To update a POST
+class UpdatePostView(APIView):
+    permission_classes=[AllowAny]
+    authentication_classes = [TokenAuthentication]
+
+    def put(self, request, pk):
+        try:
+            post = Post.objects.get(pk=pk)
+            
+        except post.DoesNotExist:
+            return Response({'msg': "post not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if post.author != request.user:
+            return Response({"msg": "You are not allow to edit this post"}, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = PostSerializer(post, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"msg": "Post updated successfully", "updated post": serializer.data,},  status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+
+# To delete a POST
+class DeletePostView(APIView):
+    permission_classes=[AllowAny]
+    authentication_classes=[TokenAuthentication]
+    
+    def delete(self, request, pk):
+        try: 
+            post = Post.objects.get(pk=pk)
+        except post.DoesNotExist:
+            return Response({"msg": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if post.author != request.user:
+            return Response({"msg": "You are not allowed to delete this post"})
+        
+        post.delete()
+        return Response({"msg": "Post has been deleted successfully"})
+    
