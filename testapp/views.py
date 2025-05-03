@@ -47,7 +47,7 @@ class LogoutView(APIView):
     
     def post(self, request):
         request.user.auth_token.delete()
-        return Response({"User Logged out"}, status=status.HTTP_200_OK)
+        return Response({"User Logged out successfully"}, status=status.HTTP_200_OK)
     
 
 # CRUD for BLOG_API
@@ -116,3 +116,5 @@ class DeletePostView(APIView):
         post.delete()
         return Response({"msg": "Post has been deleted successfully"})
     
+
+
